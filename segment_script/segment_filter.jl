@@ -17,13 +17,17 @@ elseif Sys.islinux()
 end
 #---
 img = load(img_path);
-tree_path = "D:\\stitched2\\segment_ttree.jls"
+if Sys.isapple()
+    tree_path = "/Users/binxu/Holy_Optical_Imaging/segment_ttree.jls"
+elseif Sys.iswindows()
+    tree_path = "D:\\stitched2\\segment_ttree.jls"
+end
 ttree2 = deserialize(tree_path);
 tileaction2 = initialize_triage_action(ttree2);
 
 #---
 using CellSegmentation, MergePairwise, TiledFactorizations
-using FFTW, Statistics
+using FFTW, Statistics, DSP, StatsBase
 #--- Compute features
 spatial_sum = [sum(tile.S) for tile in ttree2.tiles];
 spatial_max = [maximum(tile.S) for tile in ttree2.tiles];
@@ -37,6 +41,7 @@ for tile_id=1:length(ttree2.tiles)
     temporal_power_arr[tile_id, :] = T_power
 end
 end
+LLband = sum(temporal_power_arr[:,1:10], dims=2);
 Lband = sum(temporal_power_arr[:,10:20], dims=2);
 L0band = sum(temporal_power_arr[:,20:50], dims=2);
 L1band = sum(temporal_power_arr[:,50:100], dims=2);
@@ -47,7 +52,7 @@ L5band = sum(temporal_power_arr[:,1000:2000], dims=2);
 Mband = sum(temporal_power_arr[:,2000:5000], dims=2);
 Hband = sum(temporal_power_arr[:,5000:10000], dims=2);
 #---
-using Plots #,Plotly,GR
+using Plots, Printf #,Plotly,GR
 # plotly()
 # GR()
 pyplot()
@@ -90,7 +95,6 @@ ttree2_new = triage_actions!(deepcopy(ttree2), tileaction2)
 # tiled_nf!(ttreenew, reftree, initT=false)
 triage_gui(ttree2_new, tileaction2, img)
 
-
 #%%
 # ---- Low Pass Filtering of traces
 using DSP
@@ -101,29 +105,46 @@ trace_filt = filt(digitalfilter(responsetype, designmethod), ttree2.tiles[trace_
 plot(ttree2.tiles[trace_id].T)
 plot!(trace_filt)
 
-using Printf
-# --- View features of a tile
-sampling_rate = 20;
-tile_id = 1005
-trace = ttree2.tiles[tile_id].T;
-L = length(trace)
-f_space = sampling_rate/2 * LinRange(0,1,ceil(Int,L/2+1));
-T_power = abs2.(FFTW.fft((trace .- mean(trace))./std(trace)))/length(trace);
-@printf("===Tile %d===\n", tile_id)
-@printf("Sum spatial val: %.3f \t Max spatial val: %.3f
-        Sum temporal val: %.3f \t Max temporal val: %.3f
-        Centralized Band Power: [10,20]: %.3f \t [20,50]: %.3f \t
-        [50,100]: %.3f \t  [100,200]: %.3f \t  [200,500]: %.3f \t  [500,1000]: %.3f \t
-        [1000,2000]: %.3f \t [2000,5000]: %.3f \t [5000,10000]: %.3f \n",
-        spatial_sum[tile_id], spatial_max[tile_id],
-        temporal_sum[tile_id], temporal_max[tile_id], Lband[tile_id], L0band[tile_id],
-        L1band[tile_id], L2band[tile_id], L3band[tile_id], L4band[tile_id],
-        L5band[tile_id], Mband[tile_id], Hband[tile_id])
 
-plot(f_space, T_power[1:ceil(Int,L/2+1)], label=string(tile_id), title="Spectrum Power of Tile",
-    xlabel="freq(Hz)")
-ylims!(-min(std(T_power),0.05), 3*std(T_power))
+# --- View features of a tile
+tile_id = 1021
+function vis_calc_feature(tile_id)
+    sampling_rate = 20;
+    trace = ttree2.tiles[tile_id].T;
+    L = length(trace)
+    f_space = sampling_rate/2 * LinRange(0,1,ceil(Int,L/2+1));
+    T_power = abs2.(FFTW.fft((trace .- mean(trace))./std(trace)))/length(trace);
+
+    feat_stats = [spatial_sum[tile_id], spatial_max[tile_id],
+    temporal_sum[tile_id], temporal_max[tile_id],
+    std(trace), skewness(trace), kurtosis(trace),
+    Lband[tile_id], L0band[tile_id], L1band[tile_id], L2band[tile_id],
+    L3band[tile_id], L4band[tile_id], L5band[tile_id], Mband[tile_id],
+    Hband[tile_id]]
+    @printf("===Tile %d===\n", tile_id)
+    @printf("Sum spatial val: %.3f \t Max spatial val: %.3f
+    Sum temporal val: %.3f \t Max temporal val: %.3f
+    Trace std: %.3f \t Trace skewness: %.3f \t Trace kurtosis: %.3f \t
+    Centralized Band Power: [10,20]: %.3f \t [20,50]: %.3f \t
+    [50,100]: %.3f \t  [100,200]: %.3f \t  [200,500]: %.3f \t  [500,1000]: %.3f \t
+    [1000,2000]: %.3f \t [2000,5000]: %.3f \t [5000,10000]: %.3f \n",
+    feat_stats...)
+
+    plt0 = histogram(trace, bin=50, label=string(tile_id), show = true)
+    title!(@sprintf("Signal histogram \n std: %.3f skew: %.3f kurt: %.3f", feat_stats[5:7]...))
+    plt1 = plot(f_space, T_power[1:ceil(Int,L/2+1)], label=string(tile_id),
+        xlabel="freq(Hz)", show = true)
+    title!(@sprintf("Spectrum Power of Tile %d", tile_id))
+    # \n Band Power: [10,20]: %.3f \t [20,50]: %.3f \t
+    # [50,100]: %.3f \t  [100,200]: %.3f \t  [200,500]: %.3f \t  [500,1000]: %.3f \t
+    # [1000,2000]: %.3f \t [2000,5000]: %.3f \t [5000,10000]: %.3f \n",feat_stats[8:end]...))
+    ylims!(-min(std(T_power),0.05), 3*std(T_power))
+    return feat_stats, plt0, plt1
+end
+stats, plt0, plt1 = vis_calc_feature(1022)
+display(plt0)
+display(plt1)
 # 946 947 954 957 958 is really good tile! 955 weak cell but less SNR
 # 981 is an distinct example
 # 1003 is definitely bad
-# 1004 is ful of noise
+# 1004 is ful of noise.  1020 different kind of noise

@@ -107,8 +107,10 @@ plot!(trace_filt)
 
 
 # --- View features of a tile
-tile_id = 1021
-function vis_calc_feature(tile_id)
+
+f = Plots.font("DejaVu Sans", 12)
+default(size=(1200,600), guidefont=f, xtickfont=f, ytickfont=f, titlefont=font(14), legendfont=f)
+function vis_calc_feature(tile_id, do_plot::Bool=true)
     sampling_rate = 20;
     trace = ttree2.tiles[tile_id].T;
     L = length(trace)
@@ -129,22 +131,51 @@ function vis_calc_feature(tile_id)
     [50,100]: %.3f \t  [100,200]: %.3f \t  [200,500]: %.3f \t  [500,1000]: %.3f \t
     [1000,2000]: %.3f \t [2000,5000]: %.3f \t [5000,10000]: %.3f \n",
     feat_stats...)
+    if !do_plot
+        return feat_stats
+    else
+        plt0 = histogram(trace, bin=50, orientation=:horizontal, label=string(tile_id),
+            alpha=0.8, legend=false, yticks=nothing, xticks=nothing)
+        title!(@sprintf("Signal histogram"))
+        Plots.annotate!(0.6*xlims()[2], 0.7*ylims()[2],
+            text(@sprintf("std: %.3f \n skew: %.3f \n kurt: %.3f", feat_stats[5:7]...), 12))
 
-    plt0 = histogram(trace, bin=50, label=string(tile_id), show = true)
-    title!(@sprintf("Signal histogram \n std: %.3f skew: %.3f kurt: %.3f", feat_stats[5:7]...))
-    plt1 = plot(f_space, T_power[1:ceil(Int,L/2+1)], label=string(tile_id),
-        xlabel="freq(Hz)", show = true)
-    title!(@sprintf("Spectrum Power of Tile %d", tile_id))
-    # \n Band Power: [10,20]: %.3f \t [20,50]: %.3f \t
-    # [50,100]: %.3f \t  [100,200]: %.3f \t  [200,500]: %.3f \t  [500,1000]: %.3f \t
-    # [1000,2000]: %.3f \t [2000,5000]: %.3f \t [5000,10000]: %.3f \n",feat_stats[8:end]...))
-    ylims!(-min(std(T_power),0.05), 3*std(T_power))
-    return feat_stats, plt0, plt1
+        plt1 = plot(f_space, T_power[1:ceil(Int,L/2+1)], label=string(tile_id),
+            xlabel="Freq(Hz)", legend=:bottom)
+        xticks!(0:0.5:sampling_rate/2)
+        vline!(collect(f_space)[[10,20,50,100,200,500,1000,2000,5000,10000]],
+            label="Band seperation",alpha=0.8,linewidth=0.4, color=:red)
+        title!(@sprintf("Spectrum Power of Tile %d", tile_id))
+        ylims!(-min(std(T_power),0.05), 2 * percentile(Tpower, 99.5))#3*std(T_power))
+        Plots.annotate!(sampling_rate/4, 0.9*ylims()[2],
+            text(@sprintf("Band Power: [10,20]: %.3f [20,50]: %.3f
+        [50,100]: %.3f [100,200]: %.3f  [200,500]: %.3f  [500,1000]: %.3f
+        [1000,2000]: %.3f [2000,5000]: %.3f [5000,10000]: %.3f \n",feat_stats[8:end]...), 12))
+
+        plt2 = plot((1:L)./sampling_rate, trace, xlabel="Time(s)", label=string(tile_id),
+            linewidth=0.8, alpha=0.8)
+        # plt_syn = plot(plt1, plt2, layout=grid(2,1,heights=[0.7,0.3]))
+
+        l = @layout [  a{0.7h};
+                    grid(1,2, widths=[0.8,0.2])]
+        plt_syn = plot(plt1, plt2, plt0, layout=l)
+        return feat_stats, plt_syn, [plt0,plt1,plt2]
+    end
 end
-stats, plt0, plt1 = vis_calc_feature(1022)
-display(plt0)
-display(plt1)
+tile_id = 1320
+trace = ttree2.tiles[tile_id].T;
+stats, pltsyn, plt_arr = vis_calc_feature(tile_id)
+display(pltsyn)
 # 946 947 954 957 958 is really good tile! 955 weak cell but less SNR
 # 981 is an distinct example
 # 1003 is definitely bad
-# 1004 is ful of noise.  1020 different kind of noise
+# 1004 1022 1023 is ful of noise.  1020 different kind of noise
+# 1081 is purely noise
+# 1025 is an example of long term ramping noise! Note the difference
+@time for tile_id=tile_idx
+    stats, pltsyn, plt_arr = vis_calc_feature(tile_id)
+    savefig(pltsyn, "D:\\Holy Lab\\Proc_figures\\"*@sprintf("stats_%04d.png",tile_id))
+end
+stats_arr = zeros()
+@time for tile_id=1:length(ttree2.tiles)
+    stats = vis_calc_feature(tile_id, false)

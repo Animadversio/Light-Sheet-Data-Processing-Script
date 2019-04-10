@@ -175,7 +175,39 @@ display(pltsyn)
 @time for tile_id=tile_idx
     stats, pltsyn, plt_arr = vis_calc_feature(tile_id)
     savefig(pltsyn, "D:\\Holy Lab\\Proc_figures\\"*@sprintf("stats_%04d.png",tile_id))
-end
-stats_arr = zeros()
+end # 2303.141171 seconds (819.15 M allocations: 41.391 GiB, 0.82% gc time)
+stats_arr = zeros(Float32,(length(ttree2.tiles), length(stats)))
 @time for tile_id=1:length(ttree2.tiles)
-    stats = vis_calc_feature(tile_id, false)
+    stats = vis_calc_feature(tile_id, false);
+    stats_arr[tile_id, :] = stats;
+end # 42.071125 seconds (4.10 M allocations: 2.897 GiB, 1.12% gc time)
+scatter(log.(stats_arr[:,9]),log.(abs.(stats_arr[:,7])))
+# ---
+tile_mask = (L0band.>3) .& (spatial_sum .> 10) .& (map(log, temporal_max) .> -6.5) .&
+     (stats_arr[:,7] .> 2);
+
+function find_nonzero(array)
+ indx = [];
+ for i = 1:length(array)
+     if array[i]!=0
+     push!(indx,i)
+     end
+ end
+return indx
+end
+# tile_mask = (L0band.>3) .& (spatial_sum .> 10) .& (map(log, temporal_max) .> -6.5);
+# tile_idx  = find_nonzero(tile_mask);
+# ---
+function mask_action!(tile_mask, tileaction)
+ for i = 1:length(tile_mask)
+     if tile_mask[i]
+         tileaction[i] = ("keep",)
+     else
+         tileaction[i] = ("delete",)
+     end
+ end
+end
+mask_action!(tile_mask, tileaction2)
+ttree2_new = triage_actions!(deepcopy(ttree2), tileaction2)
+# tiled_nf!(ttreenew, reftree, initT=false)
+triage_gui(ttree2_new, tileaction2, img)

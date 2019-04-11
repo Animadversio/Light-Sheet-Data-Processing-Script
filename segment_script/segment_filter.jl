@@ -28,6 +28,7 @@ tileaction2 = initialize_triage_action(ttree2);
 #---
 using CellSegmentation, MergePairwise, TiledFactorizations
 using FFTW, Statistics, DSP, StatsBase
+using DSP
 #--- Compute features
 spatial_sum = [sum(tile.S) for tile in ttree2.tiles];
 spatial_max = [maximum(tile.S) for tile in ttree2.tiles];
@@ -66,38 +67,9 @@ scatter((Lband), (L1band), xlabel="Lband",ylabel="L1band")
 scatter(log.(L0band), log.(L1band), xlabel="L0band",ylabel="L1band")
 scatter(log.(L0band), log.(Mband), xlabel="L0band",ylabel="Mband")
 scatter(log.(L0band), log.(Mband), xlabel="L0band",ylabel="Mband")
-
-#%%
-
-function find_nonzero(array)
-    indx = [];
-    for i = 1:length(array)
-        if array[i]!=0
-        push!(indx,i)
-        end
-    end
-return indx
-end
-tile_mask = (L0band.>3) .& (spatial_sum .> 10) .& (map(log, temporal_max) .> -6.5);
-tile_idx  = find_nonzero(tile_mask);
-# ---
-function mask_action!(tile_mask, tileaction)
-    for i = 1:length(tile_mask)
-        if tile_mask[i]
-            tileaction[i] = ("keep",)
-        else
-            tileaction[i] = ("delete",)
-        end
-    end
-end
-mask_action!(tile_mask, tileaction2)
-ttree2_new = triage_actions!(deepcopy(ttree2), tileaction2)
-# tiled_nf!(ttreenew, reftree, initT=false)
-triage_gui(ttree2_new, tileaction2, img)
-
 #%%
 # ---- Low Pass Filtering of traces
-using DSP
+
 trace_id = 946
 responsetype = Lowpass(0.5; fs=20);
 designmethod = Butterworth(4);
@@ -180,16 +152,13 @@ display(pltsyn)
     stats, pltsyn, plt_arr = vis_calc_feature(tile_id)
     savefig(pltsyn, "D:\\Holy Lab\\Proc_figures\\"*@sprintf("stats_%04d.png",tile_id))
 end # 2303.141171 seconds (819.15 M allocations: 41.391 GiB, 0.82% gc time)
-stats_arr = zeros(Float32,(length(ttree2.tiles), length(stats)))
+stats_arr = zeros(Float32,(length(ttree2.tiles), 16))
 @time for tile_id=1:length(ttree2.tiles)
     stats = vis_calc_feature(tile_id, false);
     stats_arr[tile_id, :] = stats;
 end # 42.071125 seconds (4.10 M allocations: 2.897 GiB, 1.12% gc time)
 scatter(log.(stats_arr[:,9]),log.(abs.(stats_arr[:,7])))
 # ---
-tile_mask = (L0band.>3) .& (spatial_sum .> 10) .& (map(log, temporal_max) .> -6.5) .&
-     (stats_arr[:,7] .> 2);
-
 function find_nonzero(array)
  indx = [];
  for i = 1:length(array)
@@ -199,8 +168,10 @@ function find_nonzero(array)
  end
 return indx
 end
-# tile_mask = (L0band.>3) .& (spatial_sum .> 10) .& (map(log, temporal_max) .> -6.5);
-# tile_idx  = find_nonzero(tile_mask);
+tile_mask = (L0band.>3) .& (spatial_sum .> 10) .& (map(log, temporal_max) .> -6.5) .&
+     (stats_arr[:,7] .> 2);
+tile_idx  = find_nonzero(tile_mask);
+
 # ---
 function mask_action!(tile_mask, tileaction)
  for i = 1:length(tile_mask)
@@ -231,7 +202,7 @@ savefig(htmap, "D:\\Holy Lab\\events_raster2.png")
 
 #%% zscore map
 @time begin
-zscore_arr = zeros(Float16,(length(tile_idx), length(trace)))
+zscore_arr = zeros(Float32,(length(tile_idx), length(ttree2.tiles[1].T)))
 for (idx, tile_id) in enumerate(tile_idx)
     trace = ttree2.tiles[tile_id].T
     zscore_arr[idx, :] = zscore(trace)
@@ -253,7 +224,36 @@ sumactivity = sum(zscore_arr[:,17000:20000], 1)
 max_val, rel_idx = findmax(sumactivity)
 synfire_idx = findall(mean(zscore_arr[:,18600:18620],dims=2).>5)
 synfire_glob_idx = tile_idx[synfire_idx]
-
-plot(zscore_arr[[coord.I[1] for coord in synfire_idx],18000:19000]);
-
+@time plt = plot((18200:19500)/20,
+    transpose(zscore_arr[[coord.I[1] for coord in synfire_idx],18200:19500]),
+    legend=:none,size=(1500,600),alpha=0.6,)
+xlabel!("Time(s)")
+ylabel!("z-score")
+@time savefig(plt,"D:\\Holy Lab\\zscore_zoomin_plot.png")
 # [coord.I[1] for coord in synfire_idx]
+
+sumactivity = sum(zscore_arr[:,6200:8000], dims=1)
+max_val, rel_idx = findmax(sumactivity)
+synfire_idx = findall(mean(zscore_arr[:,7135:7145],dims=2).>5)
+synfire_glob_idx = tile_idx[synfire_idx]
+time_window = 7000:8000
+@time plt = plot(time_window/20,
+    transpose(zscore_arr[[coord.I[1] for coord in synfire_idx],time_window]),
+    legend=:none,size=(1500,600),alpha=0.6,)
+xlabel!("Time(s)")
+ylabel!("z-score")
+@time savefig(plt,"D:\\Holy Lab\\zscore_zoomin_plot2.png")
+
+#%%% Save and output data!
+using MAT
+f = matopen("D:\\Holy Lab\\tile_traces.mat", "w")
+write(f, "zscore_arr", zscore_arr)
+write(f, "tile_idx", tile_idx)
+write(f, "stats_arr", stats_arr)
+close(f)
+
+f = matopen("D:\\Holy Lab\\raw_traces.mat", "w")
+write(f, "raw_traces", raw_traces2)
+close(f)
+raw_traces = [ttree2.tiles[tile_id].T for tile_id in 1:length(ttree2.tiles)]
+raw_traces2 = hcat(raw_traces...)

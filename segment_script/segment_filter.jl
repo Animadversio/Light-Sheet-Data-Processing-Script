@@ -109,7 +109,7 @@ plot!(trace_filt)
 # --- View features of a tile
 
 f = Plots.font("DejaVu Sans", 12)
-default(size=(1200,600), guidefont=f, xtickfont=f, ytickfont=f, titlefont=font(14), legendfont=f)
+default(size=(1200,1000), guidefont=f, xtickfont=f, ytickfont=f, titlefont=font(14), legendfont=f)
 function vis_calc_feature(tile_id, do_plot::Bool=true)
     sampling_rate = 20;
     trace = ttree2.tiles[tile_id].T;
@@ -155,10 +155,14 @@ function vis_calc_feature(tile_id, do_plot::Bool=true)
         plt2 = plot((1:L)./sampling_rate, trace, xlabel="Time(s)", label=string(tile_id),
             linewidth=0.8, alpha=0.8)
         # plt_syn = plot(plt1, plt2, layout=grid(2,1,heights=[0.7,0.3]))
-
-        l = @layout [  a{0.7h};
-                    grid(1,2, widths=[0.8,0.2])]
-        plt_syn = plot(plt1, plt2, plt0, layout=l)
+        htm1 = heatmap(ttree2.tiles[tile_id].S[:,:,1],aspect_ratio=:equal,grid=false,ticks=false,legend = :none)
+        htm2 = heatmap(ttree2.tiles[tile_id].S[:,:,2],aspect_ratio=:equal,grid=false,ticks=false,legend = :none)
+        htm3 = heatmap(ttree2.tiles[tile_id].S[:,:,3],aspect_ratio=:equal,grid=false,ticks=false,legend = :none)
+        blk = plot(legend=false,grid=false,ticks=false,foreground_color_subplot=:white)
+        l = @layout [  a{0.6h};
+                    grid(1,2, widths=[0.8,0.2]);
+                    grid(1,3)] # , widths=[0.2,0.2,0.2,0.2,0.2]
+        plt_syn = plot(plt1, plt2, plt0, htm1, htm2, htm3,  layout=l)
         return feat_stats, plt_syn, [plt0,plt1,plt2]
     end
 end
@@ -211,3 +215,45 @@ mask_action!(tile_mask, tileaction2)
 ttree2_new = triage_actions!(deepcopy(ttree2), tileaction2)
 # tiled_nf!(ttreenew, reftree, initT=false)
 triage_gui(ttree2_new, tileaction2, img)
+
+
+#%% Heatmap of population activity
+@time begin
+events_arr = zeros(Bool,(length(tile_idx), length(trace)))
+for (idx, tile_id) in enumerate(tile_idx)
+    trace = ttree2.tiles[tile_id].T
+    events_arr[idx, :] = trace.>2*std(trace)
+end
+end #  1.225967 seconds (45.73 k allocations: 73.329 MiB, 0.53% gc time)
+@time htmap = heatmap((1:length(trace))/20,1:length(tile_idx),events_arr,size=(1800,600),legend=:none,
+    title="Events raster of >2 std activity", show=false);
+savefig(htmap, "D:\\Holy Lab\\events_raster2.png")
+
+#%% zscore map
+@time begin
+zscore_arr = zeros(Float16,(length(tile_idx), length(trace)))
+for (idx, tile_id) in enumerate(tile_idx)
+    trace = ttree2.tiles[tile_id].T
+    zscore_arr[idx, :] = zscore(trace)
+end
+end #  1.225967 seconds (45.73 k allocations: 73.329 MiB, 0.53% gc time)
+
+tmp = heatmap(zscore_arr[1:500,1:2000],size=(800,600),c=:OrRd,clims=(0,5),
+    title="Z score activity");
+savefig(tmp, "D:\\Holy Lab\\tmp.png")
+
+@time htmap2 = heatmap((1:length(trace))/20,1:length(tile_idx),
+    zscore_arr,c=:OrRd,clims=(0,5),size=(1800,600),
+    title="Z score activity", show=false);
+savefig(htmap2, "D:\\Holy Lab\\zscore_plot.png")
+display(htmap2)
+
+#%%
+sumactivity = sum(zscore_arr[:,17000:20000], 1)
+max_val, rel_idx = findmax(sumactivity)
+synfire_idx = findall(mean(zscore_arr[:,18600:18620],dims=2).>5)
+synfire_glob_idx = tile_idx[synfire_idx]
+
+plot(zscore_arr[[coord.I[1] for coord in synfire_idx],18000:19000]);
+
+# [coord.I[1] for coord in synfire_idx]

@@ -244,6 +244,8 @@ xlabel!("Time(s)")
 ylabel!("z-score")
 @time savefig(plt,"D:\\Holy Lab\\zscore_zoomin_plot2.png")
 
+
+
 #%%% Save and output data!
 using MAT
 f = matopen("D:\\Holy Lab\\tile_traces.mat", "w")
@@ -252,8 +254,26 @@ write(f, "tile_idx", tile_idx)
 write(f, "stats_arr", stats_arr)
 close(f)
 
+
+raw_traces = [ttree2.tiles[tile_id].T for tile_id in 1:length(ttree2.tiles)]
+raw_traces2 = hcat(raw_traces...)
 f = matopen("D:\\Holy Lab\\raw_traces.mat", "w")
 write(f, "raw_traces", raw_traces2)
 close(f)
-raw_traces = [ttree2.tiles[tile_id].T for tile_id in 1:length(ttree2.tiles)]
-raw_traces2 = hcat(raw_traces...)
+
+tile_space = [ttree2.tiles[tile_id].S for tile_id in 1:length(ttree2.tiles)]
+f = matopen("D:\\Holy Lab\\tile_space.mat", "w")
+write(f, "tile_space", tile_space)
+close(f)
+
+tile_pos = [[[ttree2.tiles[tile_id].box.intervals[1].left, ttree2.tiles[tile_id].box.intervals[1].right],
+             [ttree2.tiles[tile_id].box.intervals[2].left, ttree2.tiles[tile_id].box.intervals[2].right],
+             [ttree2.tiles[tile_id].box.intervals[3].left, ttree2.tiles[tile_id].box.intervals[3].right]]
+             for tile_id in 1:length(ttree2.tiles)]
+f = matopen("D:\\Holy Lab\\tile_pos2.mat", "w")
+write(f, "tile_pos", tile_pos)
+close(f)
+
+using NPZ
+npzwrite("D:\\Holy Lab\\ttree_data.npz", Dict("zscore_arr" => zscore_arr, "tile_pos" => tile_pos, "raw_traces" => raw_traces,
+                "tile_space" => tile_space, "tile_idx" => tile_idx))

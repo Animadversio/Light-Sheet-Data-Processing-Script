@@ -1,5 +1,4 @@
 #---
-using TileTreesGUI
 using Serialization, FileIO, JLD2
 using BoxTrees, TileTrees, TileTreesGUI, ImageView
 using Images
@@ -274,6 +273,8 @@ f = matopen("D:\\Holy Lab\\tile_pos2.mat", "w")
 write(f, "tile_pos", tile_pos)
 close(f)
 
+tile_idx = convert(Array{Int64,1},tile_idx)
 using NPZ
-npzwrite("D:\\Holy Lab\\ttree_data.npz", Dict("zscore_arr" => zscore_arr, "tile_pos" => tile_pos, "raw_traces" => raw_traces,
-                "tile_space" => tile_space, "tile_idx" => tile_idx))
+npzwrite("D:\\Holy Lab\\ttree_data.npz", tile_pos)
+#Dict("zscore_arr" => zscore_arr, "tile_pos" => tile_pos, "raw_traces" => raw_traces,
+#                "tile_space" => tile_space, "tile_idx" => tile_idx))

@@ -8,3 +8,5 @@
 .idea/runConfigurations/julia_repl.xml
 .idea/other.xml
 .idea/modules.xml
+*.swc
+*.nrrd

@@ -84,7 +84,11 @@ img_ANTs_syn = imshow(colorview(RGB, paddedviews(0, norm_refbrain[120:340,120:34
 ###############################################################
 #%%
 using FixedPointNumbers
-cd("/Users/binxu/Holy_Optical_Imaging/Registrate_Atlas")
+if Sys.isapple()
+    cd("/Users/binxu/Holy_Optical_Imaging/Registrate_Atlas")
+elseif Sys.iswindows()
+    cd(raw"D:\Light-Sheet-Data-Processing-Script\Registrate_Atlas")
+end
 ref_HucGcamp = load("MPIN-Atlas__Reference_brains__Live__HuCGCaMP5G.nrrd");
 ref_Huc = load("MPIN-Atlas__Reference_brains__Fixed__HuCnlsGCaMP.nrrd");
 begin # print the volume info

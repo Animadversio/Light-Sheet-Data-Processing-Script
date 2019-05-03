@@ -1,1 +1,10 @@
 **/.tag*
+.idea/encodings.xml
+.idea/juliaConfig.xml
+.idea/Light-Sheet-Data-Processing-Script.iml
+.idea/misc.xml
+.idea/workspace.xml
+.idea/vcs.xml
+.idea/runConfigurations/julia_repl.xml
+.idea/other.xml
+.idea/modules.xml

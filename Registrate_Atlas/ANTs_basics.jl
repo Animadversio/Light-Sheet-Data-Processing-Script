@@ -1,12 +1,20 @@
 using Images, ImageView
 using Images, Unitful, Interpolations, Rotations, CoordinateTransformations
 using ANTsRegistration
-cd("/Users/binxu/Holy_Optical_Imaging/Registrate_Atlas/Cody_02_20_2017/")
+if Sys.isapple()
+    cd("/Users/binxu/Holy_Optical_Imaging/Registrate_Atlas/Cody_02_20_2017/")
+elseif Sys.iswindows()
+    cd(raw"D:\cross_modal_registration\huc_gc6f_vglut_lox_R_lox_G\both_preprocessed\02_20_2017")
+end
 refbrain_path = "resampled/refbrain.nrrd"
 refbrain = load(refbrain_path);
 
 using MAT
-cd("/Users/binxu/Holy_Optical_Imaging/matlab_visualization")
+if Sys.isapple()
+    cd("/Users/binxu/Holy_Optical_Imaging/matlab_visualization")
+elseif Sys.iswindows()
+    cd(raw"D:\Light-Sheet-Data-Processing-Script\matlab_visualization")
+end
 vol = matread("image_vol.mat")
 image_vol = vol["image_vol"];
 vol = nothing
@@ -64,6 +72,7 @@ norm_warp_ocpi = newimg_warp./maximum(newimg_warp);
 # ANTsRegistration
 new_ps = (1.3, 1.3, 3.0) .* Unitful.μm
 using OffsetArrays
+
 # offset_ref = OffsetArray(norm_refbrain[120:340,120:340,20:100], 120:340,120:340,20:100);
 fixed = AxisArray(norm_refbrain[120:340,120:340,20:100], (:x, :y, :z), new_ps);#norm_refbrain[120:340,120:340,20:100]
 # fixed = AxisArray(norm_refbrain[120:340,120:340,20:100],   (:x, :y, :z), new_ps);
@@ -76,15 +85,19 @@ stage = Stage(fixed, Global("Rigid"), MI(), (4,2,1), (4u"μm",2u"μm",1u"μm"), 
 # though "squashed" horizontally they also differ by a rotation (once the pixel spacing is accounted for)
 # rigid = Stage(fixed, Global("Rigid"))
 syn = Stage(fixed, SyN())
-img_warp0 = register(fixed, moving, [stage, syn];histmatch=true); # /255 , syn
+img_warp0 = register(fixed, moving, [stage, syn];histmatch=true, verbose=true); # /255 , syn
 # img_warp0 = register(fixed, orig_mov, [stage, syn];histmatch=true); # /255 , syn
 img_ANTs_input = imshow(colorview(RGB, paddedviews(0, fixed, zeroarray, moving)...))
 img_ANTs_syn = imshow(colorview(RGB, paddedviews(0, norm_refbrain[120:340,120:340,20:100], zeroarray, img_warp0)...))
 
 ###############################################################
-#%%
+#%% Register the reference brain together
 using FixedPointNumbers
-cd("/Users/binxu/Holy_Optical_Imaging/Registrate_Atlas")
+if Sys.isapple()
+    cd("/Users/binxu/Holy_Optical_Imaging/Registrate_Atlas")
+elseif Sys.iswindows()
+    cd(raw"D:\Light-Sheet-Data-Processing-Script\Registrate_Atlas")
+end
 ref_HucGcamp = load("MPIN-Atlas__Reference_brains__Live__HuCGCaMP5G.nrrd");
 ref_Huc = load("MPIN-Atlas__Reference_brains__Fixed__HuCnlsGCaMP.nrrd");
 begin # print the volume info
@@ -133,9 +146,11 @@ ref_HucGcamp_resamp = AxisArray(ref_HucGcamp_resamp, (:x, :y, :z), new_spacing) 
 img_ref_match = imshow(colorview(RGB, paddedviews(0, reinterpret.(N0f8,ref_Huc),
     zeroarray, ref_HucGcamp_resamp)...))
 # ANTsregister the life brain and the fixed brain
-fixed_ref = ref_Huc;#AxisArray(ref_Huc, (:x, :y, :z), new_ps);
-moving_ref = ref_HucGcamp_resamp;# ref_HucGcamp # AxisArray(ref_HucGcamp, (:x, :y, :z), new_ps);
-stage = Stage(fixed_ref, Global("Rigid"), MI(), (8,4,2,1), (8u"μm",4u"μm",2u"μm",1u"μm"), (2000,1000,500,100))
+conv_data = convert(Array{Float32,3},fixed_ref.data);
+fixed_ref = AxisArray(conv_data, (:x, :y, :z), new_spacing);#AxisArray(ref_Huc, (:x, :y, :z), new_ps);
+# moving_ref = ref_HucGcamp_resamp;# ref_HucGcamp # AxisArray(ref_HucGcamp, (:x, :y, :z), new_ps);
+moving_ref = AxisArray(convert(Array{Float32,3},ref_HucGcamp_resamp.data), (:x, :y, :z), new_spacing);# ref_HucGcamp # AxisArray(ref_HucGcamp, (:x, :y, :z), new_ps);
+stage = Stage(fixed_ref, Global("Rigid"), MI(), (16,4,2,1), (16u"μm",4u"μm",2u"μm",1u"μm"), (2000,1000,500,100))
 # syn = Stage(fixed, SyN())
-ref_GCamp_warp = register(fixed_ref, moving_ref, [stage]; histmatch=false); # /255 , syn
+ref_GCamp_warp = register(fixed_ref, moving_ref, [stage]; histmatch=true, verbose=true); # /255 , syn
 # img_ANTs_input = imshow(colorview(RGB, paddedviews(0, fixed, zeroarray, moving)...))

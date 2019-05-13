@@ -10,6 +10,7 @@
 .idea/modules.xml
 *.swc
 *.nrrd
+
 CellSegmentation/
 julia_matrices_slides.pdf
 julia_plotting_slides.pdf
@@ -22,3 +23,5 @@ parallel_reg_result.jls
 parallel_reg_result.jld2
 Parallel_computing_with_Julia.pdf
 morph.ppt
+
+*.asv

@@ -1,18 +1,30 @@
 %% Import data
-cd '/Users/binxu/Library/Mobile Documents/com~apple~CloudDocs/Data_Transport/'
+if ismac
+    cd '/Users/binxu/Library/Mobile Documents/com~apple~CloudDocs/Data_Transport/'
+elseif ispc
+    cd 'C:\Users\binxu\iCloudDrive\Data_Transport'
+end
 load('raw_traces.mat')
 load('tile_pos2.mat')
 load('tile_space.mat')
 load('tile_traces.mat')
-cd '/Users/binxu/Holy_Optical_Imaging/matlab_visualization'
+if ismac
+    cd '/Users/binxu/Holy_Optical_Imaging/matlab_visualization'
+elseif ispc
+    cd 'D:\Light-Sheet-Data-Processing-Script\matlab_visualization'
+end
 load('image_vol.mat')
+tile_idx = cell2mat(tile_idx); 
+raw_traces = raw_traces';
 %% Histogram / scatter of statistical features across tiles
 histogram2(stats_arr(:,1),stats_arr(:,3),50)
 %%
 figure(5)
 histogram(log(stats_arr(:,11)),50)
 %%
-raw_traces = raw_traces';
+figure(7)
+imagesc(raw_traces(tile_idx(outperm), :), [0,0.02])
+
 %%
 figure()
 plot(raw_traces(967,:))
@@ -131,12 +143,13 @@ set(gcf, 'position', [100, 0, 1022, 797])
 colorbar()
 axis equal tight
 %%
-figure(17)
+figure(6)
 imagesc(zscore_arr(outperm,:),[0,5]) % crop the clim to 5 std
 title("zscore activity trace (sorted by linkage)",'FontSize',18)
 ylabel("Tile id")
 xlabel("Time")
 set(17,'position',[34,0,1400,800])
+%%
 % hline(separator_h,'w:')
 %% Cutofff the tree to get cluster
 T = cluster(Z,'Cutoff',0.5,'Criterion','distance');
@@ -161,6 +174,7 @@ end
 C = C(perm_Cid);
 C_cnt = C_cnt(perm_Cid); % re arrange the Classes from the largest cluster to the smallest 
 fprintf("Maximum cluster sizes %s\n",num2str(C_cnt(1:5)))
+
 %% Sort the clusters by the size of cluster
 perm_ind_sort = [];
 separator_h = [];
@@ -250,22 +264,22 @@ label_canvas = zeros(400,198,40,'int16');
 vol_canvas = zeros(400,198,40,'double');
 C_id_list = int16(2:30);
 for i = 1:numel(C_id_list)
-C_id = C_id_list(i);
-cluster_tile_id = int16(find(T==C(C_id)));
-for tid = cluster_tile_id'
-    global_tid = tile_idx{tid}; 
-    tile_pad = C_id*int16(tile_space{global_tid} > thresh);
-    pos_rng = tile_pos{global_tid};
-    label_canvas(pos_rng{1}(1):pos_rng{1}(2), ...
-            pos_rng{2}(1):pos_rng{2}(2), ...
-            pos_rng{3}(1):pos_rng{3}(2)) = tile_pad;%C_id;
-    vol_canvas(pos_rng{1}(1):pos_rng{1}(2), ...
-            pos_rng{2}(1):pos_rng{2}(2), ...
-            pos_rng{3}(1):pos_rng{3}(2)) = tile_space{global_tid} + ...
-            vol_canvas(pos_rng{1}(1):pos_rng{1}(2), ...
-            pos_rng{2}(1):pos_rng{2}(2), ...
-            pos_rng{3}(1):pos_rng{3}(2));
-end
+    C_id = C_id_list(i);
+    cluster_tile_id = int16(find(T==C(C_id)));
+    for tid = cluster_tile_id'
+        global_tid = tile_idx{tid}; 
+        tile_pad = C_id*int16(tile_space{global_tid} > thresh);
+        pos_rng = tile_pos{global_tid}; 
+        label_canvas(pos_rng{1}(1):pos_rng{1}(2), ... 
+                pos_rng{2}(1):pos_rng{2}(2), ... 
+                pos_rng{3}(1):pos_rng{3}(2)) = tile_pad;%C_id;
+        vol_canvas(pos_rng{1}(1):pos_rng{1}(2), ...
+                pos_rng{2}(1):pos_rng{2}(2), ...
+                pos_rng{3}(1):pos_rng{3}(2)) = tile_space{global_tid} + ...
+                vol_canvas(pos_rng{1}(1):pos_rng{1}(2), ...
+                pos_rng{2}(1):pos_rng{2}(2), ...
+                pos_rng{3}(1):pos_rng{3}(2));
+    end
 end
 % volshow(vol_canvas,label_canvas,'ScaleFactors',[0.65,0.65,5])
 volumeViewer(image_vol_crop,label_canvas,'ScaleFactors',[0.65,0.65,5])
@@ -304,3 +318,45 @@ volumeViewer(image_vol_crop,label_canvas,'ScaleFactors',[0.65,0.65,5])
 for i = 1:numel(tile_list_cell)
 fprintf(num2str(tile_list_cell{i}));fprintf('\n')
 end
+%% Linear dynamics fitting
+connect_coef = ( zscore_arr(outperm, 2:end) - zscore_arr(outperm, 1:end-1) ) / zscore_arr(outperm, 1:end-1); 
+% such that  connect_coef * zscore_arr(outperm, t) = 
+%           zscore_arr(outperm, t+1) - zscore_arr(outperm, t)
+%% Assess goodness of fit 
+estimated_zscore_arr = connect_coef * zscore_arr(outperm, 1:end-1) + zscore_arr(outperm, 1:end-1);
+estimated_zscore_arr = [zscore_arr(outperm, 1), estimated_zscore_arr];
+err_zscore_arr = estimated_zscore_arr - zscore_arr; 
+%%
+figure(4)
+imagesc(estimated_zscore_arr,[0,5])
+%%
+figure(5)
+imagesc(err_zscore_arr,[0,5])
+%%
+% rand_idx = randi(2271,[1,10]); 
+figure(6);clf;hold on
+for i=1:numel(rand_idx)
+    subplot(numel(rand_idx),1,i);
+    hold on;
+    plot(estimated_zscore_arr(rand_idx(i), :))
+    plot(zscore_arr(outperm(rand_idx(i)), :))
+    plot(autonom_zscore_arr(rand_idx(i), :))
+    ylim([-2,10])
+end
+%% Self autonomous dynamics
+autonom_zscore_arr = zeros(size(zscore_arr));
+autonom_zscore_arr(:,1) = zscore_arr(outperm,1); 
+for t = 2:size(autonom_zscore_arr,2)
+    autonom_zscore_arr(:,t) = connect_coef * autonom_zscore_arr(:,t-1);
+end
+
+%% visualize dynamics 
+figure(3)
+imagesc(connect_coef,[-0.18,0.18])
+colormap('autumn')
+colorbar()
+axis equal tight
+%% coefficient histogram
+figure()
+histogram(connect_coef(:))
+

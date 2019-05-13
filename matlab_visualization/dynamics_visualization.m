@@ -17,7 +17,7 @@ parfor tid=1:length(tile_idx)
 end
 toc
 save('tile_centerofmass.mat', CoM_array)
-%%
+%% Calculating Mass of each ROI tile
 tic
 Mass_array = zeros(length(tile_idx),1);
 parfor tid=1:length(tile_idx)
@@ -26,13 +26,13 @@ parfor tid=1:length(tile_idx)
      Mass_array(tid,:) = sum(tile_patch, 'all');
 end
 toc
-%%
+%% Visualizing ROI cluster
 ind_array = outperm(1025:1180);
 figure(18)
 scatter3(0.65 * CoM_array(ind_array, 1), 0.65 * CoM_array(ind_array, 2), 5 * CoM_array(ind_array, 3))
 axis equal
 %% Cluster Activity Center of Mass Trajectory ! 
-% Calculate the center of mass of activity (raw florescent to avoid negative)
+% Calculate the center of mass of activity (use raw florescent to avoid negative)
 act_CoM_traj = CoM_array(ind_array, :)' * raw_traces(tile_idx(ind_array), :) ./ sum(raw_traces(tile_idx(ind_array), :), 1); %zscore_arr(ind_array, :) ./ sum(zscore_arr(ind_array, :), 1);
 % CoM_traj = CoM_array(ind_array, :)' * zscore_arr(ind_array, :) ./ sum(zscore_arr(ind_array, :), 1); %zscore_arr(ind_array, :) ./ sum(zscore_arr(ind_array, :), 1);
 time_slice = 7500:8000; % around an activity peak! 
@@ -41,7 +41,8 @@ scatter3(0.65 * CoM_array(ind_array, 1), 0.65 * CoM_array(ind_array, 2), 5 * CoM
 axis equal
 comet3(0.65*act_CoM_traj(1, time_slice), 0.65*act_CoM_traj(2, time_slice), 5*act_CoM_traj(3, time_slice))
 %% Visualizing the calcium activity on the 3d space
-
+ind_array;
+time_slice;
 figure(20)
 for t_step = time_slice
     scatter3(0.65 * CoM_array(ind_array, 1), ...
@@ -56,9 +57,9 @@ end
 %% Fancy version 
 samp_rate = 20;
 do_record =1 ;
-cluster_be = [1776, 1847]; 
+cluster_be = [1776,1847]; 
 ind_array =  outperm(cluster_be(1):cluster_be(2));%1782:1884;%1:2271;
-time_slice = 6000:12000;%5479:5800;%4164:8620;%6056:19660;%1:24000;
+time_slice = 6400:11800;%8800:10780;%5479:5800;%4164:8620;%6056:19660;%1:24000;
 activity_arr = zscore_arr; % raw_traces(tile_idx, :)
 
 cmax = 5;%max(activity_arr(ind_array, time_slice), [], 'all');
@@ -69,7 +70,7 @@ if do_record
     F(length(time_slice)) = struct('cdata',[],'colormap',[]);
     frame_i = 1;
 end
-figure(22);clf;hold on
+figure(23);clf;hold on
 h_str = scatter3(0.65 * CoM_array(:, 1), ...
         0.65 * CoM_array(:, 2), ...
         5 * CoM_array(:, 3), 9, 'black','filled', 'MarkerFaceAlpha', 0.3);
@@ -106,7 +107,7 @@ filename = sprintf('Cluster%d-%d_dyn_t%d-%d',cluster_be(1),cluster_be(2),...
 figure()
 h = scatter3(0.65 * CoM_array(:, 1), ...
         0.65 * CoM_array(:, 2), ...
-        5 * CoM_array(:, 3), 2*Mass_array, 'b', 'MarkerFaceAlpha', 0.6)
+        5 * CoM_array(:, 3), 2*Mass_array, 'b', 'MarkerFaceAlpha', 0.6);
 %% Write to AVI
 for n = 1:length(F)
     frame = F(n);

@@ -142,7 +142,7 @@ set(gcf, 'position', [100, 0, 1022, 797])
 colorbar()
 axis equal tight
 %%
-figure(17)
+figure(6)
 imagesc(zscore_arr(outperm,:),[0,5]) % crop the clim to 5 std
 title("zscore activity trace (sorted by linkage)",'FontSize',18)
 ylabel("Tile id")

@@ -93,7 +93,7 @@ clear lpf_zscore_arr
 % figure(9);hold on
 % plot(zscore_arr(781,:))
 % plot(y)
-%% Draw Correlogram
+%% Calculate Correlogram
 corr_mat = corrcoef(zscore_arr');
 %% 
 figure(1)
@@ -103,15 +103,15 @@ set(gcf, 'position', [100, 0, 1022, 797])
 colorbar()
 axis equal tight
 saveas("correlogram.png")
-%% Hirarchical Clustering and sorting
-% Y = pdist(zscore_arr,'correlation');
-% Z = linkage(Y,'average');
+%% Hirarchical Clustering and sorting of (lpf_zscore_arr)
 lpf_zscore_arr = zeros(size(zscore_arr)); % Lowpass filtered version of zscore trace
 for i=1:size(zscore_arr)
     trace = zscore_arr(i,:);
     lpf_zscore_arr(i,:) = filter1('lp',double(trace), 'fs', 20, 'fc', 1);
 end
 Z = linkage(lpf_zscore_arr,'average','correlation');
+% Y = pdist(zscore_arr,'correlation');
+% Z = linkage(Y,'average');
 % Z = linkage(zscore_arr,'average','correlation');  % Another version is to
 % use the unfiltered trace ! 
 %% Inspect the dendrogram of the linkaged data 
@@ -121,8 +121,9 @@ title("Dendrogram of (low-pass filtered traces, correlation, average link) linka
 ylabel("Link height", 'FontSize', 18)
 set(gcf,'position',[34         360        1407         438])
 %%
+corr_mat = corrcoef(zscore_arr');
+%%
 % get the index sequence from the full dendrogram tree and used to sort the
-% corr_mat
 figure(16)
 imagesc(corr_mat(outperm, outperm))
 title("Correogram of all selected tiles (sorted by linkage)",'fontsize',18);
@@ -231,12 +232,12 @@ zlabel("Z")
 daspect([1 1 1])
 view(3); 
 axis tight
-%%
+%% Overlay image volume and ROI tiles 
 %% Load the image file and import the anatomical volumes
 m = memmapfile('/Volumes/Seagate_Backup_Binxu/tmp_tfm_img3.bin','Format',{'single',[400, 198, 40, 24000],'x'});
 figure(5);imagesc(m.Data.x(:,:,10,1),'gray');axis equal tight
 image_vol = m.Data.x(:,:,:,1800);
-%%
+%% Load the saved image volume
 load('image_vol.mat')
 %% Pre-processing and limit the range of values
 UL = 0.008;BL = 0.0015;
@@ -266,10 +267,7 @@ for tid = cluster_tile_id'
             pos_rng{3}(1):pos_rng{3}(2));
 end
 end
-%
 % volshow(vol_canvas,label_canvas,'ScaleFactors',[0.65,0.65,5])
-
-%
 volumeViewer(image_vol_crop,label_canvas,'ScaleFactors',[0.65,0.65,5])
 %%
 %C(15)

@@ -3,7 +3,7 @@ using Images, Unitful, Interpolations, Rotations, CoordinateTransformations
 using ANTsRegistration
 cd("/Users/binxu/Holy_Optical_Imaging/Registrate_Atlas/Cody_02_20_2017/")
 refbrain_path = "resampled/refbrain.nrrd"
-refbrain = load(refbrain_path)
+refbrain = load(refbrain_path);
 
 using MAT
 cd("/Users/binxu/Holy_Optical_Imaging/matlab_visualization")
@@ -64,8 +64,8 @@ norm_warp_ocpi = newimg_warp./maximum(newimg_warp);
 # ANTsRegistration
 new_ps = (1.3, 1.3, 3.0) .* Unitful.μm
 using OffsetArrays
-offset_ref = OffsetArray(norm_refbrain[120:340,120:340,20:100], 120:340,120:340,20:100);
-fixed = AxisArray(offset_ref, (:x, :y, :z), new_ps);#norm_refbrain[120:340,120:340,20:100]
+# offset_ref = OffsetArray(norm_refbrain[120:340,120:340,20:100], 120:340,120:340,20:100);
+fixed = AxisArray(norm_refbrain[120:340,120:340,20:100], (:x, :y, :z), new_ps);#norm_refbrain[120:340,120:340,20:100]
 # fixed = AxisArray(norm_refbrain[120:340,120:340,20:100],   (:x, :y, :z), new_ps);
 moving = AxisArray(norm_warp_ocpi, (:x, :y, :z), new_ps);
 orig_mov = AxisArray(image_vol, (:x, :y, :z), (0.65, 0.65, 5.0) .* Unitful.μm);

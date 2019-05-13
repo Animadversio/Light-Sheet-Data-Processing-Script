@@ -56,9 +56,9 @@ end
 %% Fancy version 
 samp_rate = 20;
 do_record =1 ;
-
-ind_array =  outperm(1025:1180);%1782:1884;%1:2271;
-time_slice = 7020:8000;%5479:5800;%4164:8620;%6056:19660;%1:24000;
+cluster_be = [1776, 1847]; 
+ind_array =  outperm(cluster_be(1):cluster_be(2));%1782:1884;%1:2271;
+time_slice = 6000:12000;%5479:5800;%4164:8620;%6056:19660;%1:24000;
 activity_arr = zscore_arr; % raw_traces(tile_idx, :)
 
 cmax = 5;%max(activity_arr(ind_array, time_slice), [], 'all');
@@ -69,38 +69,44 @@ if do_record
     F(length(time_slice)) = struct('cdata',[],'colormap',[]);
     frame_i = 1;
 end
-figure(21);clf
-scatter3(0.65 * CoM_array(:, 1), ...
-    0.65 * CoM_array(:, 2), ...
-    5 * CoM_array(:, 3))
-axis equal
-set(gcf,'Renderer','zbuffer') 
+figure(22);clf;hold on
+h_str = scatter3(0.65 * CoM_array(:, 1), ...
+        0.65 * CoM_array(:, 2), ...
+        5 * CoM_array(:, 3), 9, 'black','filled', 'MarkerFaceAlpha', 0.3);
+h_act = scatter3(0.65 * CoM_array(ind_array, 1), ...
+    0.65 * CoM_array(ind_array, 2), ...
+    5 * CoM_array(ind_array, 3), 2*Mass_array(ind_array), ...
+    activity_arr(ind_array, 1), 'filled', ...
+    'MarkerFaceAlpha', 0.9);
+axis equal tight
+view([-55, 21])
+xlabel("X (rost-caud)")
+ylabel("Y (med-lat R-L)")
+zlabel("Z (dors-vent)")
+caxis([cmin, cmax])
+ch = colorbar();
+set(get(ch,'Label'), 'string', 'zscore');
 ax = gca;
 ax.NextPlot = 'replaceChildren';
 for t_step = time_slice%time_slice
-    scatter3(0.65 * CoM_array(ind_array, 1), ...
-        0.65 * CoM_array(ind_array, 2), ...
-        5 * CoM_array(ind_array, 3), 40, ...
-        activity_arr(ind_array, t_step), 'filled', ...
-        'MarkerFaceAlpha', 0.9)
-    axis equal
-    view([-55, 21])
+    activity_vec = activity_arr(ind_array, t_step);
+    h_act.CDataSource = 'activity_vec'  ; % only update data1!
+    refreshdata
     title(sprintf("%.2f s (frame %d)", t_step/samp_rate, t_step))
-    xlabel("X (rost-caud)")
-    ylabel("Y (med-lat R-L)")
-    zlabel("Z (dors-vent)")
-    caxis([cmin, cmax])
-    ch = colorbar();
-    set(get(ch,'Label'), 'string', 'zscore');
+    drawnow  
     pause(0.05)
     if do_record
-        drawnow  
         F(frame_i) = getframe(gcf);
         frame_i = frame_i+1;
     end
 end
-filename = sprintf('Cluster%d-%d_dyn_t%d-%d',1025,1180,...
+filename = sprintf('Cluster%d-%d_dyn_t%d-%d',cluster_be(1),cluster_be(2),...
     time_slice(1),time_slice(end));
+%%
+figure()
+h = scatter3(0.65 * CoM_array(:, 1), ...
+        0.65 * CoM_array(:, 2), ...
+        5 * CoM_array(:, 3), 2*Mass_array, 'b', 'MarkerFaceAlpha', 0.6)
 %% Write to AVI
 for n = 1:length(F)
     frame = F(n);

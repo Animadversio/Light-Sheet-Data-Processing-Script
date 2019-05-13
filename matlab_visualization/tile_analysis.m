@@ -149,7 +149,6 @@ ylabel("Tile id")
 xlabel("Time")
 set(17,'position',[34,0,1400,800])
 %%
-
 % hline(separator_h,'w:')
 %% Cutofff the tree to get cluster
 T = cluster(Z,'Cutoff',0.5,'Criterion','distance');

@@ -1,19 +1,66 @@
 %% Linear dynamics fitting
-connect_coef = ( zscore_arr(outperm, 2:end)  ) / zscore_arr(outperm, 1:end-1); 
 % such that  connect_coef * zscore_arr(outperm, t) = 
-%           zscore_arr(outperm, t+1) - zscore_arr(outperm, t)
-%% Assess goodness of fit 
-estimated_zscore_arr = connect_coef * zscore_arr(outperm, 1:end-1) ;
-estimated_zscore_arr = [zscore_arr(outperm, 1), estimated_zscore_arr];
-err_zscore_arr = estimated_zscore_arr - zscore_arr; 
-%% Spaectrum of the Dynamical Matrix 
-figure()
+%           zscore_arr(outperm, t+1) 
+connect_coef = ( zscore_arr(outperm, 2:end)  ) / zscore_arr(outperm, 1:end-1); 
+%% Calculate Spectrum
 e_vec0 = eig(connect_coef(:, :));
+%% Spectrum of the Dynamical Matrix 
+figure(1);clf;hold on
 scatter(real(e_vec0), imag(e_vec0))
 ylabel('Imag')
 xlabel('Real')
-title('Spectrum of the 1 order linear dynamical matrix')
-axis equal 
+circle(0,0,1);
+title('Eigen Spectrum of the 1 order linear dynamical matrix')
+axis equal tight
+save(1,'Spectrum_1lineards.fig')
+saveas(1, 'Spectrum_1lineards.png')
+%% visualize dynamics matrix
+figure(3)
+imagesc(connect_coef,[-0.18,0.18])
+colormap('autumn')
+colorbar()
+axis equal tight
+%% coefficient histogram + Spectrum + connection matrix
+figure(2);clf
+subplot(1,2,1)
+imagesc(connect_coef,[-0.18,0.18])
+ylabel('Output ROI Index')
+xlabel('Input ROI Index')
+title('Heatmap of Dynamic Matrix (ROI sorted by linkage)')
+colormap('jet')
+ch = colorbar();
+set(get(ch,'Label'), 'string', 'connection strength (climited)', 'FontSize', 12);
+axis equal tight
+subplot(1,2,2)
+hold on
+scatter(real(e_vec0), imag(e_vec0))
+ylabel('Imag')
+xlabel('Real')
+circle(0,0,1);
+title('Eigen Spectrum of the 1 order linear dynamical matrix')
+axis equal tight
+% subplot(1,3,3)
+% title('Linear dynamical matrix entry distribution')
+% histogram(connect_coef(:))
+% xlabel('entry value')
+%% Evaluate the fitting (Estimation and Comparison)
+%% Assess goodness of fit 
+estimated_zscore_arr = connect_coef * zscore_arr(outperm, 1:end-1) ;
+estimated_zscore_arr = [zscore_arr(outperm, 1), estimated_zscore_arr];
+% err_zscore_arr = estimated_zscore_arr - zscore_arr; 
+%% Self autonomous dynamics
+autonom_zscore_arr = zeros(size(zscore_arr));
+autonom_zscore_arr(:,1) = zscore_arr(outperm,1); 
+for t = 2:size(autonom_zscore_arr,2)
+    autonom_zscore_arr(:,t) = connect_coef * autonom_zscore_arr(:,t-1);
+end
+%%
+autonom_zscore_arr_o2 = zeros(size(zscore_arr));
+autonom_zscore_arr_o2(:,1:2) = zscore_arr(outperm,1:2); 
+for t = 3:size(zscore_arr,2)
+    autonom_zscore_arr_o2(:, t) = connect_coef_t2 * [autonom_zscore_arr_o2(:,t-2); ...
+                                                                                          autonom_zscore_arr_o2(:,t-1)];
+end
 %%
 figure(4)
 imagesc(estimated_zscore_arr,[0,5])
@@ -21,152 +68,187 @@ imagesc(estimated_zscore_arr,[0,5])
 figure(5)
 imagesc(err_zscore_arr,[0,5])
 %%
-rand_idx = randi(2271,[1,10]); 
-figure(6);clf;hold on
-for i=1:numel(rand_idx)
-    subplot(numel(rand_idx),1,i);
+samp_num = 10;
+rand_idx = sort(randperm(size(zscore_arr,1), samp_num)); 
+figure(19);clf;hold on
+for i=1:samp_num
+    subplot(samp_num,1,i);
     hold on;
-    plot(estimated_zscore_arr(rand_idx(i), :))
-    plot(zscore_arr(outperm(rand_idx(i)), :))
-    plot(autonom_zscore_arr(rand_idx(i), :))
+    plot(zscore_arr(outperm(rand_idx(i)), :), 'LineWidth', 1.5)
+    plot(estimated_zscore_arr(rand_idx(i), :), ':', 'LineWidth', 1.5)
+    plot(autonom_zscore_arr(rand_idx(i), :), 'k-', 'LineWidth', 1.5)
+    plot(autonom_zscore_arr_o2(rand_idx(i), :), 'r-.', 'LineWidth', 1.5)
     ylim([-2,10])
+    xlim([0,24000])
+    ylabel(num2str(rand_idx(i)))
+    if i~=samp_num
+        xticklabels([])
+    else
+        xticks(0:1000:24000)
+        xlabel('Time (timestep 0.05s)')
+    end
 end
-%% Self autonomous dynamics
-autonom_zscore_arr = zeros(size(zscore_arr));
-autonom_zscore_arr(:,1) = zscore_arr(outperm,1); 
-for t = 2:size(autonom_zscore_arr,2)
-    autonom_zscore_arr(:,t) = connect_coef * autonom_zscore_arr(:,t-1);
-end
+suptitle({'Compare Regression and Autonomous Dynamic System Prediction Result (Full Network)',
+                'Black trace: Autonomous Prediction; Red -.: 2 order auto prediction', 
+                'Orange Dot: Fitting; Blue Trace: original zscore'})
 
-%% visualize dynamics 
-figure(3)
-imagesc(connect_coef,[-0.18,0.18])
-colormap('autumn')
-colorbar()
+
+
+
+
+%% Multitimestep regression model
+connect_coef_t2 = zscore_arr(outperm, 3:end) / [zscore_arr(outperm, 1:end-2); zscore_arr(outperm, 2:end-1)]; 
+%% 
+figure(10)
+suptitle('Heatmap of Dynamic Matrix of 2 order linear model (ROI sorted by linkage)')
+subplot(1,2,1)
+imagesc(connect_coef_t2(:, 1:length(outperm)), [-0.18,0.18])%-diag(length(outperm))
+ylabel('Output ROI Index')
+xlabel('Input ROI Index')
+title('Connection Matrix (t-2)')
+colormap('jet')
+ch = colorbar();
+set(get(ch,'Label'), 'string', 'connection strength (climited)', 'FontSize', 12);
 axis equal tight
-%% coefficient histogram
+subplot(1,2,2)
+imagesc(connect_coef_t2(:, length(outperm)+1:end), [-0.18,0.18])%-diag(length(outperm)
+ylabel('Output ROI Index')
+xlabel('Input ROI Index')
+title('Connection Matrix (t-1)')
+colormap('jet')
+ch = colorbar();
+set(get(ch,'Label'), 'string', 'connection strength (climited)', 'FontSize', 12);
+axis equal tight
+
+%% Spectrum of the weight matrix 
+e_vec1 = eig(connect_coef_t2(:, 1:length(outperm)));
+e_vec2 = eig(connect_coef_t2(:, length(outperm)+1:end));
+%%
+figure(12)
+suptitle('Eigen Spectrum of the 2 order linear dynamical matrix')
+subplot(1,2,1)
+scatter(real(e_vec1), imag(e_vec1))
+ylabel('Imag')
+xlabel('Real')
+circle(0,0,1);
+title('Connection Matrix (t-2)')
+axis equal 
+subplot(1,2,2)
+scatter(real(e_vec2), imag(e_vec2))
+ylabel('Imag')
+xlabel('Real')
+circle(0,0,1);
+title('Connection Matrix (t-1)')
+axis equal 
+%% Spectrum Comparison
+figure(13);clf;hold on
+suptitle('Eigen Spectrum Comparison of  2 and 1 order linear dynamical matrix')
+scatter(real(e_vec1), imag(e_vec1), 16, 'filled', 'MarkerFaceAlpha', 0.75)
+scatter(real(e_vec2), imag(e_vec2), 16, 'filled', 'MarkerFaceAlpha', 0.75)
+scatter(real(e_vec0), imag(e_vec0), 16, 'filled', 'MarkerFaceAlpha', 0.75)
+ylabel('Imag')
+xlabel('Real')
+circle(0,0,1);
+legend({'order2 t-2 matrix', 'order2 t-1 matrix', 'order1 matrix'})
+axis equal tight
+saveas(13, 'Spectrum_Comparison.png')
+
+%% Local Network Modelling
+relind_arr = 717:1313;
+loc_connect_coef = ( zscore_arr(outperm(relind_arr), 2:end)  ) / zscore_arr(outperm(relind_arr), 1:end-1); 
+loc_connect_coef_t2 = zscore_arr(outperm(relind_arr), 3:end) / [zscore_arr(outperm(relind_arr), 1:end-2); ...
+                                                                                                                zscore_arr(outperm(relind_arr), 2:end-1)]; 
+loc_e_vec0 = eig(loc_connect_coef(:, :));
+loc_e_vec1 = eig(loc_connect_coef_t2(:, 1:length(relind_arr)));
+loc_e_vec2 = eig(loc_connect_coef_t2(:, length(relind_arr)+1:end));
+%%
+figure(17);clf;hold on
+title({'Eigen Spectrum Comparison of  2 and 1 order linear dynamical matrix', ...
+    '(outperm(717:1313) subnetwork)'})
+scatter(real(loc_e_vec1), imag(loc_e_vec1), 16, 'filled', 'MarkerFaceAlpha', 0.9)
+scatter(real(loc_e_vec2), imag(loc_e_vec2), 16, 'filled', 'MarkerFaceAlpha', 0.9)
+scatter(real(loc_e_vec0), imag(loc_e_vec0), 16, 'filled', 'MarkerFaceAlpha', 0.9)
+ylabel('Imag')
+xlabel('Real')
+circle(0,0,1);
+legend({'order2 t-2 matrix', 'order2 t-1 matrix', 'order1 matrix'})
+axis equal tight
+saveas(gcf, 'Loc717-1313_Spectrum_Comparison.png')
+%%
 figure()
-histogram(connect_coef(:))
+suptitle({'Heatmap of Dynamic Matrix of 2 order linear model (ROI sorted by linkage)',...
+                '(outperm(717:1313) subnetwork)'})
+subplot(1,3,1)
+imagesc(relind_arr, relind_arr, loc_connect_coef(:, 1:length(relind_arr)), [-0.18,0.18])%-diag(length(outperm))
+ylabel('Output ROI Index')
+xlabel('Input ROI Index')
+title('Connection Matrix (order 1)')
+colormap('jet')
+ch = colorbar();
+set(get(ch,'Label'), 'string', 'connection strength (climited)', 'FontSize', 12);
+axis equal tight
+subplot(1,3,2)
+imagesc(relind_arr, relind_arr, loc_connect_coef_t2(:, 1:length(relind_arr)), [-0.18,0.18])%-diag(length(outperm))
+ylabel('Output ROI Index')
+xlabel('Input ROI Index')
+title('Connection Matrix (t-2)')
+colormap('jet')
+ch = colorbar();
+set(get(ch,'Label'), 'string', 'connection strength (climited)', 'FontSize', 12);
+axis equal tight
+subplot(1,3,3)
+imagesc(relind_arr, relind_arr, loc_connect_coef_t2(:, length(relind_arr)+1:end), [-0.18,0.18])%-diag(length(outperm)
+ylabel('Output ROI Index')
+xlabel('Input ROI Index')
+title('Connection Matrix (t-1)')
+colormap('jet')
+ch = colorbar();
+set(get(ch,'Label'), 'string', 'connection strength (climited)', 'FontSize', 12);
+axis equal tight
+%% Linear 1 step estimation 
+loc_est_act_arr = zeros(size(loc_auto_act_arr));
+loc_est_act_arr(:, 1) = zscore_arr(outperm(relind_arr), 1);
+loc_est_act_arr(:,2:end) = loc_connect_coef * zscore_arr(outperm(relind_arr), 1:end-1);
+%% Autonomous Dynamic system
+loc_auto_act_arr = zeros(length(relind_arr), size(zscore_arr,2));
+loc_auto_act_arr(:, 1) = zscore_arr(outperm(relind_arr), 1);
+for  t = 2:size(zscore_arr,2)
+    loc_auto_act_arr(:,t) = loc_connect_coef * loc_auto_act_arr(:,t-1); 
+end
+%% 2 order prediction
+loc_auto_act_arr_o2 = zeros(length(relind_arr), size(zscore_arr,2));
+loc_auto_act_arr_02(:, 1:2) = zscore_arr(outperm(relind_arr), 1:2);
+for  t = 3:size(zscore_arr,2)
+    loc_auto_act_arr_02(:,t) = loc_connect_coef_t2* [loc_auto_act_arr_02(:,t-2); ...
+                                                                                            loc_auto_act_arr_02(:,t-1)];
+end
+%%
+samp_num = 10;
+rand_idx = sort(randperm(length(relind_arr), samp_num)); %randi(length(rand_idx),[1,10]); 
+figure(5);clf;hold on
+for i=1:samp_num
+    subplot(samp_num,1,i);
+    hold on;
+    plot(zscore_arr(outperm(relind_arr(rand_idx(i))), :), 'LineWidth', 1.5)
+    plot(loc_est_act_arr(rand_idx(i), :), ':', 'LineWidth', 1.5)
+    plot(loc_auto_act_arr(rand_idx(i), :),'k-', 'LineWidth', 1.5)
+    plot(loc_auto_act_arr_02(rand_idx(i), :),'r-.', 'LineWidth', 1.5)
+    ylim([-2,10])
+    xlim([0,24000])
+    ylabel(num2str(relind_arr(rand_idx(i))))
+    if i~=samp_num
+        xticklabels([])
+    else
+        xticks(0:1000:24000)
+        xlabel('Time (timestep 0.05s)')
+    end
+end
+suptitle({'Compare Regression and Autonomous Dynamic System Prediction Result (717-1313 subnet)',
+                'Black trace: 1 order Autonomous Prediction; Red -.: 2 order auto prediction',
+                'Orange Dot: Fitting; Blue Trace: original zscore'})
+
+%% Auto regressive model 
 
 %% L1 penalizaed regression model 
 connect_coef_l1 = lassoglm(zscore_arr(outperm, 1:end-1),zscore_arr(outperm, 2:end));
-%% Multitimestep regression
-
-connect_coef_t2 = zscore_arr(outperm, 3:end) / [zscore_arr(outperm, 1:end-2); zscore_arr(outperm, 2:end-1)]; 
-
-
-%% 
-figure(10)
-subplot(1,2,1)
-imagesc(connect_coef_t2(:, 1:length(outperm)), [-0.01,0.01])%-diag(length(outperm))
-axis equal tight
-colorbar()
-subplot(1,2,2)
-imagesc(connect_coef_t2(:, length(outperm)+1:end), [-0.01,0.01])%-diag(length(outperm)
-axis equal tight
-colorbar()
-figure(11)
-subplot(1,2,1)
-imagesc(connect_coef_t2(:, 1:length(outperm)), [-0.01,0.01])%-diag(length(outperm))
-axis equal tight
-colorbar()
-subplot(1,2,2)
-imagesc(connect_coef_t2(:, 1:length(outperm))', [-0.01,0.01])%-diag(length(outperm)
-axis equal tight
-colorbar()
-%% Spectrum of the weight matrix 
-
-figure(12)
-subplot(1,2,1)
-e_vec = eig(connect_coef_t2(:, 1:length(outperm)));
-scatter(real(e_vec), imag(e_vec))
-axis equal 
-subplot(1,2,2)
-e_vec2 = eig(connect_coef_t2(:, length(outperm)+1:end));
-scatter(real(e_vec2), imag(e_vec2))
-axis equal 
-%% Auto regressive model 
-
-
-%%  delayed correlation 
-tic
-lag_mat = zeros(size(zscore_arr,1),'int16'); % uint8
-corr_ef_mat = zeros(size(zscore_arr,1),'single');
-for i = 1:size(zscore_arr,1)
-    disp(i)
-    parfor j = i+1:size(zscore_arr,1)
-        [corr,lag] = xcorr(zscore_arr(i, :)',zscore_arr(j, :)',30,'coeff' );
-        [m_cf, mid] = max(corr);
-        corr_ef_mat(i,j) = m_cf;
-        lag_mat(i,j) = lag(mid);
-%         corr_ef_mat(j,i) = m_cf;
-%         lag_mat(j,i) = - lag(mid);
-    end
-end 
-toc
-figure(8)
-imagesc(lag_mat)
-figure(9)
-imagesc(corr_ef_mat)
-save('xcorr_mat.mat', 'lag_mat', 'corr_ef_mat')
-%%
-lag_mat_sym = int16(lag_mat) - int16(lag_mat');
-corr_ef_mat_sym = corr_ef_mat + corr_ef_mat';
-%%
-figure(8)
-imagesc(lag_mat_sym(outperm,outperm))
-figure(9)
-imagesc(corr_ef_mat_sym(outperm,outperm))
-%%
-tic
-idx_array = outperm(717:1313);%(2007:2040);
-lag_submat = zeros(length(idx_array),'int16'); % uint8
-corr_ef_submat = zeros(length(idx_array),'single');
-for i = 1:length(idx_array)
-    disp(i)
-    parfor j = i+1:length(idx_array)
-        [corr,lag] = xcorr(zscore_arr(idx_array(i), :)',zscore_arr(idx_array(j), :)',50,'coeff' );
-        [m_cf, mid] = max(corr);
-        corr_ef_submat(i,j) = m_cf;
-        lag_submat(i,j) = lag(mid);
-%         corr_ef_submat(j,i) = m_cf;
-%         lag_submat(j,i) = - lag(mid);
-    end
-end 
-toc
-corr_ef_submat = corr_ef_submat + corr_ef_submat';
-lag_submat = lag_submat - lag_submat';
-figure(11);clf;
-imagesc(corr_ef_submat)
-colorbar()
-axis equal tight
-figure(12);clf;
-imagesc(lag_submat)
-colorbar()
-axis equal tight
-save('xcorr_submatrix_717-1313.mat','corr_ef_submat', 'lag_submat')
-% save('xcorr_submatrix_2007-2040.mat','corr_ef_submat', 'lag_submat')
-
-figure(16);clf
-subplot(2,2,1)
-plot(zscore_arr(idx_array,:)')
-xlabel('time')
-ylabel('zscore F')
-xlim([0,24000])
-ylim([-0.1,20])
-subplot(2,2,3)
-imagesc(zscore_arr(idx_array,:))
-xlabel('time')
-ylabel('ROI id')
-subplot(2,2,2)
-imagesc(corr_ef_submat)
-ch1 = colorbar();
-set(get(ch1,'Label'), 'string', 'maximum cross correlation', 'FontSize', 12);
-axis equal tight
-subplot(2,2,4)
-imagesc(lag_submat)
-ch2 = colorbar();
-set(get(ch2,'Label'), 'string',  'lag time for maximum correlation', 'FontSize', 12);
-axis equal tight
-suptitle("Cluster Cross Correlation Plot (outperm(717-1313))")
 

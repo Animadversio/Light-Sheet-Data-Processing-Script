@@ -27,8 +27,8 @@ parfor tid=1:length(tile_idx)
 end
 toc
 %% Visualizing ROI cluster
-ind_array = outperm(1025:1180);
-figure(18)
+ind_array = outperm(717:1313);%1025:1180
+figure()
 scatter3(0.65 * CoM_array(ind_array, 1), 0.65 * CoM_array(ind_array, 2), 5 * CoM_array(ind_array, 3))
 axis equal
 %% Cluster Activity Center of Mass Trajectory ! 
@@ -53,11 +53,10 @@ for t_step = time_slice
     axis equal
     pause(0.1)
 end
-
 %% Fancy version 
 samp_rate = 20;
 do_record =1 ;
-cluster_be = [1776,1847]; 
+cluster_be = [1776,1847]; %1025:1180
 ind_array =  outperm(cluster_be(1):cluster_be(2));%1782:1884;%1:2271;
 time_slice = 6400:11800;%8800:10780;%5479:5800;%4164:8620;%6056:19660;%1:24000;
 activity_arr = zscore_arr; % raw_traces(tile_idx, :)

@@ -17,24 +17,39 @@ for i = 1:numel(fn_list)
         l=l+1;
     end
 end
-%% Plot neurons
+%% Plot neurons in fish coordinate
 figure(3);clf;hold on
 for i = 1:l-1
+    name = neuron_list{i};
+    tree = trees{i};
+    G = digraph(tree.dA);
+    plot(G,'XData',tree.X,'YData',tree.Y,'ZData',tree.Z,'ShowArrows','off','EdgeAlpha', 0.4, 'LineWidth', 1, ...
+                'Marker', 'none')
+    soma_id = find(tree.R==2);
+    scatter3(tree.X(soma_id), tree.Y(soma_id), tree.Z(soma_id),49,'filled','MarkerFaceAlpha',0.75)
+end
+axis equal tight
+xlabel('X (med-lat R-L)')
+ylabel('Y (rost-caud)')
+zlabel('Z (vent-dors)')
+view([36.6, 11.6])
+%%
+figure(19);clf;hold on
+for i = [1:6]
     name = neuron_list{i};
     tree = trees{i};
     G = digraph(tree.dA);
     plot(G,'XData',tree.X,'YData',tree.Y,'ZData',tree.Z,'ShowArrows','off','EdgeAlpha', 0.6, 'LineWidth', 1.2, ...
                 'Marker', 'none')
     soma_id = find(tree.R==2);
-    scatter3(tree.X(soma_id), tree.Y(soma_id), tree.Z(soma_id),49)
+    scatter3(tree.X(soma_id), tree.Y(soma_id), tree.Z(soma_id),49,'filled','MarkerFaceAlpha',0.75)
 end
-axis equal
-xlabel('X')
-ylabel('Y')
-zlabel('Z')
-
-%%
-
+axis equal tight
+xlabel('X (med-lat R-L)')
+ylabel('Y (rost-caud)')
+zlabel('Z (vent-dors)')
+view([36.6, 11.6])
+%% 
 G = digraph(tree.dA);
 plot(G,'XData',tree.X,'YData',tree.Y,'ZData',tree.Z,'ArrowSize',0)
 axis equal

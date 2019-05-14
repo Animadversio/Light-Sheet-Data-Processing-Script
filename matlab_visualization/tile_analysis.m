@@ -16,6 +16,15 @@ end
 load('image_vol.mat')
 tile_idx = cell2mat(tile_idx); 
 raw_traces = raw_traces';
+%%
+figure()
+imagesc(raw_traces, [0,0.02])
+xticks(0:1000:24000)
+ylabel('Tile id ', 'FontSize', 14)
+xlabel('Time (timestep 0.05s)', 'FontSize', 14)
+title('Raw activity trace ', 'FontSize', 20)
+ch = colorbar();
+set(get(ch,'Label'), 'string', 'raw activity limited', 'FontSize', 14);
 %% Histogram / scatter of statistical features across tiles
 histogram2(stats_arr(:,1),stats_arr(:,3),50)
 %%
@@ -326,7 +335,7 @@ vol_canvas = zeros(400,198,40,'double');
 for i = 1:numel(tile_list_cell)
     cluster_tile_id = int16(tile_list_cell{i});
     for tid = cluster_tile_id
-        global_tid = tile_idx{tid}; 
+        global_tid = tile_idx(tid); 
         tile_pad = i * int16(tile_space{global_tid} > thresh);
         pos_rng = tile_pos{global_tid};
         label_canvas(pos_rng{1}(1):pos_rng{1}(2), ...
@@ -341,51 +350,50 @@ for i = 1:numel(tile_list_cell)
     end
 end
 %%
-volumeViewer(image_vol_crop,label_canvas,'ScaleFactors',[0.65,0.65,5])
+volumeViewer(image_vol,label_canvas,'ScaleFactors',[0.65,0.65,5])
 
 %%
 for i = 1:numel(tile_list_cell)
 fprintf(num2str(tile_list_cell{i}));fprintf('\n')
 end
-%% Linear dynamics fitting
-connect_coef = ( zscore_arr(outperm, 2:end) - zscore_arr(outperm, 1:end-1) ) / zscore_arr(outperm, 1:end-1); 
-% such that  connect_coef * zscore_arr(outperm, t) = 
-%           zscore_arr(outperm, t+1) - zscore_arr(outperm, t)
-%% Assess goodness of fit 
-estimated_zscore_arr = connect_coef * zscore_arr(outperm, 1:end-1) + zscore_arr(outperm, 1:end-1);
-estimated_zscore_arr = [zscore_arr(outperm, 1), estimated_zscore_arr];
-err_zscore_arr = estimated_zscore_arr - zscore_arr; 
 %%
-figure(4)
-imagesc(estimated_zscore_arr,[0,5])
-%%
-figure(5)
-imagesc(err_zscore_arr,[0,5])
-%%
-% rand_idx = randi(2271,[1,10]); 
-figure(6);clf;hold on
-for i=1:numel(rand_idx)
-    subplot(numel(rand_idx),1,i);
-    hold on;
-    plot(estimated_zscore_arr(rand_idx(i), :))
-    plot(zscore_arr(outperm(rand_idx(i)), :))
-    plot(autonom_zscore_arr(rand_idx(i), :))
-    ylim([-2,10])
+cluster_tile_id = outperm(1025:1196);
+vol_canvas = zeros(400,198,40);
+for tid = cluster_tile_id
+    global_tid = tile_idx(tid);% tid;
+    pos_rng = tile_pos{global_tid};
+    vol_canvas(pos_rng{1}(1):pos_rng{1}(2), ...
+            pos_rng{2}(1):pos_rng{2}(2), ...
+            pos_rng{3}(1):pos_rng{3}(2)) = tile_space{global_tid} + ...
+            vol_canvas(pos_rng{1}(1):pos_rng{1}(2), ...
+            pos_rng{2}(1):pos_rng{2}(2), ...
+            pos_rng{3}(1):pos_rng{3}(2));
 end
-%% Self autonomous dynamics
-autonom_zscore_arr = zeros(size(zscore_arr));
-autonom_zscore_arr(:,1) = zscore_arr(outperm,1); 
-for t = 2:size(autonom_zscore_arr,2)
-    autonom_zscore_arr(:,t) = connect_coef * autonom_zscore_arr(:,t-1);
-end
+figure(24);histogram(vol_canvas(vol_canvas>0)) % show the histogram of volume values
+%
+rX = (1:size(vol_canvas,1))*0.65;
+rY = (1:size(vol_canvas,2))*0.65;
+rZ = (1:size(vol_canvas,3))*5;
+figure(24);hold on 
+% p_full
+p = patch(isosurface(rY,rX,rZ,vol_canvas,0.035));
+isonormals(rY,rX,rZ,vol_canvas,p)
+p.FaceColor = C_color_list{i};%'magenta';
+p.EdgeColor = 'none';
+p.FaceAlpha = 0.3;
 
-%% visualize dynamics 
-figure(3)
-imagesc(connect_coef,[-0.18,0.18])
-colormap('autumn')
-colorbar()
-axis equal tight
-%% coefficient histogram
-figure()
-histogram(connect_coef(:))
+p_full = patch(isosurface(rY,rX,rZ,image_vol,0.0035));
+isonormals(rY,rX,rZ,image_vol, p_full)
+p_full.FaceColor = 'magenta';%C_color_list{i};%'magenta';
+p_full.EdgeColor = 'none';
+p_full.FaceAlpha = 0.08;
+
+xlabel("X (rost-caudal)")
+ylabel("Y (med-lat R-L)")
+zlabel("Z (dors-vent)")
+set(gca,'Zdir','reverse')
+daspect([1 1 1])
+% view(3); 
+view([-47, 23])
+axis tight equal
 

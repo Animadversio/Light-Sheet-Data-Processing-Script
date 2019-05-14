@@ -4,6 +4,8 @@
 connect_coef = ( zscore_arr(outperm, 2:end)  ) / zscore_arr(outperm, 1:end-1); 
 %% Calculate Spectrum
 e_vec0 = eig(connect_coef(:, :));
+%%
+Jord_W = jordan(connect_coef);
 %% Spectrum of the Dynamical Matrix 
 figure(1);clf;hold on
 scatter(real(e_vec0), imag(e_vec0))
@@ -54,7 +56,7 @@ autonom_zscore_arr(:,1) = zscore_arr(outperm,1);
 for t = 2:size(autonom_zscore_arr,2)
     autonom_zscore_arr(:,t) = connect_coef * autonom_zscore_arr(:,t-1);
 end
-%%
+%% 2nd order autonom ds result
 autonom_zscore_arr_o2 = zeros(size(zscore_arr));
 autonom_zscore_arr_o2(:,1:2) = zscore_arr(outperm,1:2); 
 for t = 3:size(zscore_arr,2)
@@ -92,9 +94,44 @@ suptitle({'Compare Regression and Autonomous Dynamic System Prediction Result (F
                 'Black trace: Autonomous Prediction; Red -.: 2 order auto prediction', 
                 'Orange Dot: Fitting; Blue Trace: original zscore'})
 
-
-
-
+%% Predict part of the trace
+pred_time_slic = 11400:14000;
+autonom_zscore_arr = zeros(size(zscore_arr, 1), length(pred_time_slic));
+autonom_zscore_arr(:,1) = zscore_arr(outperm, pred_time_slic(1)); 
+for t = 2:length(pred_time_slic)
+    autonom_zscore_arr(:,t) = connect_coef * autonom_zscore_arr(:,t-1);
+end
+%% 2nd order autonom ds result
+autonom_zscore_arr_o2 = zeros(size(zscore_arr, 1), length(pred_time_slic));
+autonom_zscore_arr_o2(:,1:2) = zscore_arr(outperm, pred_time_slic(1:2)); 
+for t = 3:length(pred_time_slic)
+    autonom_zscore_arr_o2(:, t) = connect_coef_t2 * [autonom_zscore_arr_o2(:,t-2); ...
+                                                                                          autonom_zscore_arr_o2(:,t-1)];
+end
+%% 
+samp_num = 10;
+rand_idx = sort(randperm(size(zscore_arr,1), samp_num)); 
+figure(3);clf;hold on
+for i=1:samp_num
+    subplot(samp_num,1,i);
+    hold on;
+    plot(pred_time_slic, zscore_arr(outperm(rand_idx(i)), pred_time_slic), 'LineWidth', 1.5)
+    plot(pred_time_slic, estimated_zscore_arr(rand_idx(i), pred_time_slic), ':', 'LineWidth', 1.5)
+    plot(pred_time_slic, autonom_zscore_arr(rand_idx(i), :), 'k-', 'LineWidth', 1.5)
+    plot(pred_time_slic, autonom_zscore_arr_o2(rand_idx(i), :), 'r-.', 'LineWidth', 1.5)
+%     ylim([-1,10])
+    xlim([pred_time_slic(1), pred_time_slic(end)])
+    ylabel(num2str(rand_idx(i)))
+    if i~=samp_num
+        xticklabels([])
+    else
+%         xticks(0:1000:24000)
+        xlabel('Time (timestep 0.05s)')
+    end
+end
+suptitle({'Compare Regression and Autonomous Dynamic System Prediction Result (Full Network)',
+                'Black trace: Autonomous Prediction; Red -.: 2 order auto prediction', 
+                'Orange Dot: Fitting; Blue Trace: original zscore'})
 
 %% Multitimestep regression model
 connect_coef_t2 = zscore_arr(outperm, 3:end) / [zscore_arr(outperm, 1:end-2); zscore_arr(outperm, 2:end-1)]; 
@@ -235,6 +272,46 @@ for i=1:samp_num
     plot(loc_auto_act_arr_02(rand_idx(i), :),'r-.', 'LineWidth', 1.5)
     ylim([-2,10])
     xlim([0,24000])
+    ylabel(num2str(relind_arr(rand_idx(i))))
+    if i~=samp_num
+        xticklabels([])
+    else
+        xticks(0:1000:24000)
+        xlabel('Time (timestep 0.05s)')
+    end
+end
+suptitle({'Compare Regression and Autonomous Dynamic System Prediction Result (717-1313 subnet)',
+                'Black trace: 1 order Autonomous Prediction; Red -.: 2 order auto prediction',
+                'Orange Dot: Fitting; Blue Trace: original zscore'})
+%% Start prediction from middle 
+%% Predict part of the trace
+% relind_arr = 717:1313;
+pred_time_slic = 11500:14000;
+loc_auto_act_arr = zeros(length(relind_arr), length(pred_time_slic));
+loc_auto_act_arr(:,1) =  zscore_arr(outperm(relind_arr), pred_time_slic(1)); 
+for t = 2:length(pred_time_slic)
+    loc_auto_act_arr(:,t) = loc_connect_coef * loc_auto_act_arr(:,t-1);
+end
+% 2nd order autonom ds result
+loc_auto_act_arr_02 = zeros(length(relind_arr), length(pred_time_slic));
+loc_auto_act_arr_02(:,1:2) =  zscore_arr(outperm(relind_arr), pred_time_slic(1:2)); 
+for t = 3:length(pred_time_slic)
+    loc_auto_act_arr_02(:, t) = loc_connect_coef_t2 * [loc_auto_act_arr_02(:,t-2); ...
+                                                                                              loc_auto_act_arr_02(:,t-1)];
+end
+%% 
+samp_num = 10;
+rand_idx = sort(randperm(length(relind_arr), samp_num)); %randi(length(rand_idx),[1,10]); 
+figure(15);clf;hold on
+for i=1:samp_num
+    subplot(samp_num,1,i);
+    hold on;
+    plot(pred_time_slic, zscore_arr(outperm(relind_arr(rand_idx(i))), pred_time_slic), 'LineWidth', 1.5)
+    plot(pred_time_slic, loc_est_act_arr(rand_idx(i), pred_time_slic), ':', 'LineWidth', 1.5)
+    plot(pred_time_slic, loc_auto_act_arr(rand_idx(i), :),'k-', 'LineWidth', 1.5)
+    plot(pred_time_slic, loc_auto_act_arr_02(rand_idx(i), :),'r-.', 'LineWidth', 1.5)
+%     ylim([-2,10])
+    xlim([pred_time_slic(1), pred_time_slic(end)])
     ylabel(num2str(relind_arr(rand_idx(i))))
     if i~=samp_num
         xticklabels([])

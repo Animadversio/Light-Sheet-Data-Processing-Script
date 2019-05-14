@@ -1,7 +1,11 @@
-%% Use toolbox from 
+%% Use treestoolbox from
 % https://www.treestoolbox.org/manual/index.html
 %% Read neurons
-cd('/Users/binxu/Holy_Optical_Imaging/Registrate_Atlas/Mitral_cells/')
+if ismac
+    cd('/Users/binxu/Holy_Optical_Imaging/Registrate_Atlas/Mitral_cells/')
+elseif ispc
+    cd('D:\Light-Sheet-Data-Processing-Script\Registrate_Atlas\Mitral_cells\')
+end
 fn_list = dir();
 neuron_list = {}; l=1;
 for i = 1:numel(fn_list)
@@ -34,6 +38,6 @@ zlabel('Z')
 G = digraph(tree.dA);
 plot(G,'XData',tree.X,'YData',tree.Y,'ZData',tree.Z,'ArrowSize',0)
 axis equal
-hold on 
+hold on
 soma_id = find(tree.R==2);
 scatter3(tree.X(soma_id), tree.Y(soma_id), tree.Z(soma_id),49)

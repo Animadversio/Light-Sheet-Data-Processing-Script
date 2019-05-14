@@ -24,7 +24,12 @@ histogram(log(stats_arr(:,11)),50)
 %%
 figure(7)
 imagesc(raw_traces(tile_idx(outperm), :), [0,0.02])
-
+xticks(0:1000:24000)
+ylabel('Tile id (sorted by linkage)', 'FontSize', 14)
+xlabel('Time (timestep 0.05s)', 'FontSize', 14)
+title('raw activity trace ', 'FontSize', 20)
+ch = colorbar();
+set(get(ch,'Label'), 'string', 'raw activity limited', 'FontSize', 14);
 %%
 figure()
 plot(raw_traces(967,:))
@@ -131,16 +136,31 @@ figure(15)
 [~, T, outperm] = dendrogram(Z,0); 
 title("Dendrogram of (low-pass filtered traces, correlation, average link) linkage", 'FontSize', 18)
 ylabel("Link height", 'FontSize', 18)
-set(gcf,'position',[34         360        1407         438])
+set(gcf, 'position', [34         360        1407         438])
+%% Visualize
+figure(24)
+set(gcf, 'position', [1          41        1920         963])
+subplot('Position', [0.05, 0.7, 0.9, 0.2])
+[~, T, outperm] = dendrogram(Z,0, 'ColorThreshold', 0.5); % , 'Orientation', 'left'
+title(["Dendrogram", "(low-pass filtered z-score traces, correlation, average linkage)"], 'FontSize', 18)
+ylabel("Link height", 'FontSize', 18)
+xticklabels([])
+xticks([])
+subplot('Position', [0.05, 0.08, 0.9, 0.6])
+imagesc(zscore_arr(outperm,:)',[0,5])
+xlabel('Sorted Tile id', 'FontSize', 18)
+ylabel('Time', 'FontSize', 18)
+% saveas(24, 'Dendrogram_sorted_trace.png')
 %%
 corr_mat = corrcoef(zscore_arr');
 %%
 % get the index sequence from the full dendrogram tree and used to sort the
-figure(16)
+figure()
 imagesc(corr_mat(outperm, outperm))
 title("Correogram of all selected tiles (sorted by linkage)",'fontsize',18);
 set(gcf, 'position', [100, 0, 1022, 797])
-colorbar()
+ch = colorbar();
+set(get(ch,'Label'), 'string', 'correlation coefficient', 'FontSize', 12);
 axis equal tight
 %%
 figure(6)
@@ -204,6 +224,15 @@ cluster_tile_id = int16(find(T==C(C_id)));
 figure(10);
 plot(lpf_zscore_arr(cluster_tile_id,:)')
 title(sprintf('Cluster %d (tile number %d)',C(C_id),C_cnt(C_id)))
+%% Interactively inspect each peak! 
+ind_array = 1025:1196;
+figure(1);
+plot(lpf_zscore_arr(outperm(1025:1196),:)','-','LineWidth',0.5)
+xlim([0, 24000])
+xticks()
+xlabel("Time (timestep 0.05s)")
+ylabel("zscore (low pass filtered)")
+title(sprintf('Cluster %d-%d', ind_array(1), ind_array(end)))
 %% Isosurface Visualization of Spatial Location of the tiles 
 % C_id = 5;
 C_id_list = int16([2,]);%[2,3,4,5,6,7,8,9,10,11,12,13,14];

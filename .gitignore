@@ -25,3 +25,5 @@ Parallel_computing_with_Julia.pdf
 morph.ppt
 
 *.asv
+*.png
+*.fig
